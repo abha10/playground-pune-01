@@ -51,7 +51,7 @@ You can skip this section if you are using your own Jenkins Dashboard.
 Navigate to left panel and click on **New Item**. Enter a unique job name and select Pipeline to create a pipeline job. Hit OK!
 
 ![](images/pipeline-job-image03.png)
-## Stage 1: Prepare environment and pull code from GitHub
+#### Stage 1: Prepare environment and pull code from GitHub
 Next it will take to you to job configuration page, you need to configure your job with SCM. 
 * Copy your GitHub Repository link or if you are using this lab use: https://github.com/abha10/playground-pune-01.git 
 * Go back to your Job and under Pipeline configuration do the following steps
@@ -65,7 +65,7 @@ Next it will take to you to job configuration page, you need to configure your j
  
   3. Build your job
   
-## Stage 2: Build your code through Pipeline
+#### Stage 2: Build your code through Pipeline
 * Add the following code to your Jenkinsfile
 ```
 stage('Build') {
@@ -77,7 +77,7 @@ stage('Build') {
         }
   }
 ```
- ## Stage 3: Deploy snapshot image to test environment
+ #### Stage 3: Deploy snapshot image to test environment
  * Add following code to your Jenkinsfile
  ```
 stage('Deploy @ Test Envirnoment') {
@@ -86,7 +86,7 @@ stage('Deploy @ Test Envirnoment') {
          }
     }
  ```
- ## Stage 4: Perform Tests
+ #### Stage 4: Perform Tests
  * Add following code to your Jenkinsfile
  ```
         try {
@@ -118,7 +118,7 @@ stage('Deploy @ Test Envirnoment') {
         dockerCmd 'stop zalenium'
         dockerCmd 'rm zalenium'
  ```
- ## Stage 5: Push snapshot artifacts and images to JFrog artifactory
+ #### Stage 5: Push snapshot artifacts and images to JFrog artifactory
  
  * Add following code to your Jenkinsfile
  ```
@@ -152,6 +152,60 @@ stage('Deploy @ Test Envirnoment') {
 		
     }
 
+ ```
+ #### Stage 6: Wait for Approval
+ ^to be added
+ #### Stage 7: Release and Push releases to JFrog
+ ```
+ stage('Release') {
+        withMaven(maven: 'Maven 3') {
+            dir('app') {
+                releasedVersion = getReleasedVersion()
+                withCredentials([usernamePassword(credentialsId: 'github', passwordVariable: 'password', usernameVariable: 'username')]) {
+                    sh "git config user.email ghatkar.abhaya@gmail.com && git config user.name abha10"
+                    sh "mvn release:prepare release:perform -Dusername=${username} -Dpassword=${password}"
+                }
+                dockerCmd "build --tag ecsdigital-docker-release-images.jfrog.io/sparktodo:${releasedVersion} ."
+            }
+        }
+    }
+    stage('Push image and Artifact Releases to Artifactory'){
+       // Create an Artifactory server instance:
+       def server = Artifactory.server('abhaya-docker-artifactory')
+       def uploadSpec = """{
+	"files": [
+		{
+		"pattern": "**/*.jar",
+		"target": "ext-release-local/"
+		}
+	]
+	}"""
+	server.upload(uploadSpec)
+	   
+	   
+       // Create an Artifactory Docker instance. The instance stores the Artifactory credentials and the Docker daemon host address:
+       def rtDocker = Artifactory.docker server: server, host: "tcp://34.248.134.77:2375"
+       
+       // Push a docker image to Artifactory (here we're pushing hello-world:latest). The push method also expects
+       // Artifactory repository name (<target-artifactory-repository>).
+       def buildInfo = rtDocker.push "ecsdigital-docker-release-images.jfrog.io/sparktodo:${releasedVersion}", 'docker-release-images'
+
+       //Publish the build-info to Artifactory:
+       server.publishBuildInfo buildInfo
+     
+        //  dockerCmd 'login -u admin -p <pwf> abhaya-docker-local.jfrog.io'
+        //dockerCmd 'push abhaya-docker-local.jfrog.io/sparktodo:SNAPSHOT'
+		
+		
+    }
+ ```
+ #### Stage 8: Deploy final release to production environment
+ ```
+ stage('Deploy @ Prod') {
+        dockerCmd "run -d -p 9999:9999 --name 'production' ecsdigital-docker-release-images.jfrog.io/sparktodo:${releasedVersion}"
+    }
+  }
+}
  ```
  
 
