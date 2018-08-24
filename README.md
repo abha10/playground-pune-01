@@ -18,5 +18,6 @@ Extensible: The Pipeline plugin supports custom extensions to its DSL [1] and mu
 
 ## Agenda - This will be Hands-on!
 ### Login to Jenkins Dashboard 
+![](images/pipelineflow.png)
 
 
