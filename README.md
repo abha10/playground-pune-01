@@ -41,6 +41,9 @@ You can skip this section if you are using your own Jenkins Dashboard.
 ![](images/jenkins-login.png)
 
 ### Creating the Pipeline
+ 
+Navigate to left panel and click on **New Item**. Enter a job name and select Pipeline to create a pipeline job. Hit OK!
+![](images/pipeline-job-image03.png)
 
 
 
